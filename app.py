@@ -5,6 +5,9 @@ ok, info = ws_server.install()   # idempotent, an toàn khi rerun
 st.write("Trạng thái:", ok, "-", info)
 st.write("Số client đang kết nối:", len(ws_server.clients))
 st.button("Refresh")
+ok, info = ws_server.install()
+ok2, info2 = ws_server.install_shared()
+st.write("Shared:", ok2, "-", info2)
 import asyncio, websockets
 
 async def _self_test(path):

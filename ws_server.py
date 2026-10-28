@@ -41,3 +41,29 @@ def _is_starlette(o):
         return isinstance(o, Starlette)
     except Exception:
         return False
+def install_shared():
+    apps = []
+    for o in gc.get_objects():
+        try:
+            if isinstance(o, Starlette):
+                apps.append(o)
+        except Exception:
+            continue
+
+    for app in apps:
+        for r in app.router.routes:
+            if getattr(r, "path", None) == "/_stcore/stream":
+                if getattr(r, "_wrapped", False):
+                    return True, "Đã bọc từ trước"
+                orig = r.app
+
+                async def wrapper(scope, receive, send, orig=orig):
+                    if scope["type"] == "websocket" and b"ws=echo" in scope.get("query_string", b""):
+                        await ws_echo(WebSocket(scope, receive, send))
+                    else:
+                        await orig(scope, receive, send)
+
+                r.app = wrapper
+                r._wrapped = True
+                return True, "Đã bọc /_stcore/stream"
+    return False, "Không thấy route /_stcore/stream"
