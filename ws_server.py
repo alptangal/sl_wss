@@ -23,27 +23,21 @@ async def ws_echo(ws: WebSocket):
         pass
     finally:
         clients.discard(ws)
-
+PATHS = ["/ws-echo", "/_stcore/echo", "/_stcore/stream/echo"]
 
 def install():
-    """Trả về (ok, thông tin chẩn đoán)."""
-    found = []
-    for obj in gc.get_objects():
-        try:
-            if isinstance(obj, Starlette):
-                found.append(obj)
-        except Exception:
-            continue
-
+    found = [o for o in gc.get_objects() if _is_starlette(o)]
     if not found:
         return False, "Không tìm thấy Starlette app nào"
-
-    installed = 0
     for app in found:
-        routes = app.router.routes
-        if any(getattr(r, "path", None) == PATH for r in routes):
-            installed += 1  # đã cài rồi
-            continue
-        routes.insert(0, WebSocketRoute(PATH, ws_echo))
-        installed += 1
-    return True, f"Đã cài vào {installed}/{len(found)} Starlette app"
+        existing = {getattr(r, "path", None) for r in app.router.routes}
+        for p in PATHS:
+            if p not in existing:
+                app.router.routes.insert(0, WebSocketRoute(p, ws_echo))
+    return True, "paths: " + ", ".join(sorted(str(p) for p in {getattr(r, 'path', None) for r in found[0].router.routes} if p))
+
+def _is_starlette(o):
+    try:
+        return isinstance(o, Starlette)
+    except Exception:
+        return False
